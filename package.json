@@ -1,0 +1,50 @@
+{
+  "name": "test-playwright",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "vscode-debug": "playwright test --config ./playwright.config.ts --workers=1",
+    "lint:check": "yarn eslint 'src/**/*.{ts,js,tsx,json,css}'",
+    "prettier:check": "yarn prettier --check 'src/**/*.{ts,js,tsx,json,css}'",
+    "prettier:fix": "yarn prettier --write 'src/**/*.{ts,js,tsx,json,css}'",
+    "prepare": "husky install"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "dd-trace": "^5.65.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.1.1"
+  },
+  "type": "module",
+  "dependencies": {
+    "@appsflyer/af-node-playwright-core": "2.0.0",
+    "@playwright/test": "1.49.0",
+    "@types/minimist": "^1.2.2",
+    "@types/node": "20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.16.0",
+    "@typescript-eslint/parser": "^6.16.0",
+    "axios": "^1.5.0",
+    "csv-parser": "^3.0.0",
+    "dotenv": "^16.3.1",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "form-data": "^4.0.4",
+    "minimist": "^1.2.8",
+    "play": "^0.5.0",
+    "set-cookie-parser": "^2.6.0",
+    "tough-cookie": "^4.1.3",
+    "typescript": "5.3.2"
+  },
+  "lint-staged": {
+    "*.{ts,json, md}": [
+      "prettier --write"
+    ],
+    "*.ts": [
+      "eslint"
+    ]
+  }
+}

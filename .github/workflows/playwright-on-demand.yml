@@ -1,0 +1,166 @@
+name: Playwright On-Demand
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to run tests against (use 'prod' or input your n8s name)"
+        required: true
+        default: "prod"
+        type: string
+jobs:
+  test:
+    strategy:
+      matrix:
+        shard: [1]  # number of shards
+    runs-on:
+      group: af-default-prd
+    permissions:
+      id-token: write
+      contents: read
+    name: Shard ${{ matrix.shard }}
+    env:
+      ENV_NAME: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Vault fetch token action
+        id: vault-login
+        uses: appsflyerrnd/af-sec-vault-fetch-token@v1
+        with:
+          role: "play-wright-tests"
+
+      - name: Run Playwright Shard ${{ matrix.shard }}
+        env:
+          TOKEN: ${{ steps.vault-login.outputs.vault_token }}
+        run: |
+          if [[ "${{ github.event.inputs.environment }}" != "prod" ]]; then
+            export ENV_NAME=${{ github.event.inputs.environment }}
+            export N8S=true
+            echo "Running against N8s environment: ${{ github.event.inputs.environment }}"
+          else
+            export ENV_NAME=prod
+            echo "Running against prod"
+          fi
+          npx playwright test --shard=${{ matrix.shard }}/${{ strategy.job-total }} --reporter=blob
+
+      - name: Move blob-report into shard directory
+        if: always()
+        run: |
+          mkdir -p report-shard-${{ matrix.shard }}
+          mv blob-report report-shard-${{ matrix.shard }}/blob-report
+
+      - name: Upload report shard artifacts (blob-report, screenshots/traces/etc)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ matrix.shard }}
+          path: report-shard-${{ matrix.shard }}/
+          if-no-files-found: warn
+
+  merge-and-upload-report:
+    needs: test
+    if: always()
+    runs-on:
+      group: af-default-prd
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      REPORTS_BUCKET: "quality-platform-gitlab-reports"
+      CF_DISTRIBUTION_URL: "https://d2idjtw1ytj54c.cloudfront.net"
+      PROJECT: ${{ github.event.repository.name }}
+      PIPELINE_IID: ${{ github.run_id }}
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: npm install playwright
+
+      - name: Download all report artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-reports
+
+      - name: List all report folders
+        run: find ./all-reports
+
+      - name: Merge Playwright Reports
+        run: |
+          # Create a flat directory structure for blob reports
+          mkdir -p blob-reports-flat
+          find ./all-reports -name "*.zip" -type f -exec cp {} blob-reports-flat/ \;
+
+          # Check if we found any blob reports
+          if [ ! "$(ls -A blob-reports-flat)" ]; then
+            echo "No blob report files found!"
+            exit 1
+          fi
+
+          echo "Found blob reports:"
+          ls -la blob-reports-flat/
+
+          # Merge the reports
+          npx playwright merge-reports --reporter html,junit,json blob-reports-flat
+          if [ -f report.json ]; then mv report.json results.json; fi
+
+      - name: Vault fetch token action
+        id: vault-login
+        uses: appsflyerrnd/af-sec-vault-fetch-token@v1
+        with:
+          role: "play-wright-tests"
+
+      - name: Retrieve AWS creds from Vault
+        run: |
+          AWS_CREDS=$(curl -sS -H "X-Vault-Token:${{ steps.vault-login.outputs.vault_token }}" \
+            -L "${{ steps.vault-login.outputs.vault_addr }}/v1/aws_rnd-qai/creds/quality_infra_gitlab_reports_s3_role")
+          echo "AWS_ACCESS_KEY_ID=$(echo $AWS_CREDS | jq -r .data.access_key)" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(echo $AWS_CREDS | jq -r .data.secret_key)" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$(echo $AWS_CREDS | jq -r .data.security_token)" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ env.AWS_SESSION_TOKEN }}
+          aws-region: eu-west-1
+
+      #Still missing this: aws s3 cp results.json s3://${REPORTS_BUCKET}/${PROJECT}/${PIPELINE_IID}/
+      - name: Upload Playwright report to S3
+        run: |
+          aws s3 cp playwright-report s3://${REPORTS_BUCKET}/${PROJECT}/${PIPELINE_IID}/ --recursive
+
+      - name: Print CloudFront URL
+        run: |
+          echo "The Playwright HTML report for this build is available at - ${CF_DISTRIBUTION_URL}/${PROJECT}/${PIPELINE_IID}/index.html"
+
+      - name: Add Playwright report link to job summary
+        run: |
+          echo "### Playwright HTML Report" >> $GITHUB_STEP_SUMMARY
+          echo "[View Report](${CF_DISTRIBUTION_URL}/${PROJECT}/${PIPELINE_IID}/index.html)" >> $GITHUB_STEP_SUMMARY

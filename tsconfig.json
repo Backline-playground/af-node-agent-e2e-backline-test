@@ -1,0 +1,21 @@
+{
+  "exclude": ["node_modules"],
+  "include": [
+    "src",
+    "tests",
+    "playwright.config.ts",
+    "tests/app-settings-page/app-settings-page-fixture.ts"
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "ESNext",
+    "declaration": true,
+    "isolatedModules": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "noEmit": true
+  }
+}

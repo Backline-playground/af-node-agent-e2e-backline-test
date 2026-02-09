@@ -1,0 +1,124 @@
+---
+description: Enforces the generation of production-ready Playwright test scripts from detailed user flows using playwright-mcp. Requires all user credentials and steps up front, and ensures every test follows company best practices, uses correct selectors, and passes in CI before completion. 
+
+globs: 
+alwaysApply: false
+---
+intent: playwright_test_generation
+intent_phrases:
+  - "create playwright test"
+  - "generate playwright test"
+  - "build playwright test"
+  - "write playwright test"
+  - "I need a playwright test"
+  - "I want to create a playwright test"
+  - "new playwright test flow"
+  - "create a new playwright test"
+
+role: expert level software-engineer
+
+task:
+  Your task is to generate a Playwright test script exactly according to the user input. The test is generated using existing page object model and fixtures within this repository or creates them if not available. The Playwright test must be comprehensive, accurate, clear, and successfully executable without failures. Core success factors include correctness, clarity, maintainability, reliability, and successful execution of the test script.
+
+IMMEDIATELY FOLLOW THIS WORKFLOW EXACTLY IN THE FOLLOWING ORDER AND AS STATED:
+  1. 
+    IN ONE MESSAGE: 
+    Ask the user to provide in text a full test flow. for example: "1.go to overview dashboard, 2.click on media source filter, 3.select facebook_ads, 4.assert that facebook ads now appears in the table widget". Do not continue until he provides you with the test flow.
+    Ask the user to provide a test user vault key, a page url, test user email, test user password and a vault TOKEN. Do not continue until he provides you with the all of these.
+  
+  2. 
+    You must Perform the test flow successfully using playwright-mcp. prioritize selectors by "data-qa-id" attribute and using "getByTestId". Save all of the selectors found to complete the flow successfully.
+    you can login through this flow:
+    go to: {page url}
+    username: {test user email}
+    password: {test user password}
+    **CRITICAL: ZERO TOLERANCE FOR INCOMPLETE FLOWS**
+    - You MUST execute EVERY SINGLE STEP from the user's flow list
+    - If ANY step fails or is skipped, you have COMPLETELY FAILED the task
+    - Read the user's assertion requirement word-by-word and ensure EVERY part is tested
+    - If ANY assertion of the test flow is missing or incorrect, the task has FAILED
+    - "Mostly working" or "almost complete" = TOTAL FAILURE
+    - Take screenshots to visually identify components needed to interact with and obstacles.
+    - NEVER declare success until the ENTIRE flow passes end-to-end
+    - NEVER give up on finding elements - use multiple detection strategies
+
+  3. 
+    Using your recorded steps and selectors from step 2, create a single playwright test script strictly following the instructions in this step. Iterate running and debugging the new test until the full test flow required by the user runs and passes successfuly. If you get stuck go back to step 2 and continue from there again.
+    - First check if you have any existing page object model, fixtures and methods relevant for your test flow.
+    - for login step in the test, you must use only this method: import { loginWithCookie } from '@appsflyer/af-node-playwright-core';
+    - Always Check for existing component wrappers from '@appsflyer/af-node-playwright-core'
+    - NEVERT run npx playwright show-report
+    - If you are missing selectors to generate the full test flow, you must return to step 2 and continue from there. 
+    - Never try simplifying the test flow, it should be exactly the one requested by the user.
+    - "Mostly working" or "almost complete" = TOTAL FAILURE
+    - Do not continue until the full test flow required by the user runs and passes successfuly.
+
+  4. 
+    you must run the test and it must pass successfully.
+    - If a test fails you must return to step 2 and continue from there. Before you go back to step 2, you must debug using the logs, playwright report including screenshots and videos.
+    - Re-read the original test flow requested by the user.
+    - Your task is not finished until the exact test flow and assertions requested by the user pass successfully. 
+    - DO NOT simplify the required test flow.
+    **ENVIRONMENT VARIABLES REQUIRED:**
+    - export TOKEN="{TOKEN}"; export ENV_NAME="prod" ; export N8S=false
+    - IF ".euw1." is in the {page url} then N8S="true" and ENV_NAME={the substring that appears after apigateway- and before .euw1.}
+    - USE ONLY --reporter=list
+    **ABSOLUTE ZERO TOLERANCE FOR TEST FAILURES**
+    - If ANY test fails for ANY reason, you have NOT completed the task
+    - NEVER stop working when tests fail - this is when the real work begins
+    - MANDATORY failure response protocol:
+      a. Analyze error logs, screenshots, and videos completely
+      b. Identify the exact root cause (selector, timing, authentication, etc.)
+      c. Return to Step 2 to capture correct selectors if needed
+      d. Fix the issue and re-run the test
+      e. Repeat until achieving exit code 0 with "1 passed"
+    - Read the user's assertion requirement word-by-word and ensure EVERY part is tested
+    - Authentication errors → Use provided TOKEN and vault credentials
+    - Selector errors → Return to Step 2, capture correct selectors
+    - Strict mode violations → Use specific selectors (getByTestId, first(), nth())
+    - Timeout errors → Improve wait conditions and element detection
+    - NEVER declare completion until test shows "1 passed" with exit code 0
+
+  5. 
+    Once you have a test that successfully runs and passes you must review all the code you have written and improve it according to the following standards:
+    - for login step in the test, you must use only this method: import { loginWithCookie } from '@appsflyer/af-node-playwright-core';
+    - Check for existing component wrappers from '@appsflyer/af-node-playwright-core'
+    - NEVER use the PAGE URL for assertions unless EXPLICITLY requested by the user.
+    - Use descriptive and meaningful test names that clearly describe the expected behavior
+    - Utilize Playwright fixtures (e.g., `test`, `page`, `expect`) to maintain test isolation and consistency  
+    - Use `test.beforeEach` and `test.afterEach` for setup and teardown to ensure a clean state for each test
+    - Keep tests DRY (Don't Repeat Yourself) by extracting reusable logic into helper functions
+    - Replace ALL `page.locator` usage with recommended built-in and role-based locators (`page.getByRole`, `page.getByLabel`, `page.getByTitle`, etc.)
+    - Avoid using `page.getByText` - use more specific locators
+    - Use `page.getByTestId` whenever `data-testid` is defined on an element or container
+    - Reuse Playwright locators by using variables or constants for commonly used elements
+    - Implement proper error handling and logging in tests to provide clear failure messages
+    - Replace ALL hardcoded timeouts with web-first assertions (`toBeVisible`, etc.)
+    - Use `expect` matchers for assertions (`toEqual`, `toContain`, `toBeTruthy`, `toHaveLength`, etc.) and avoid using `assert` statements
+    - Use `page.waitFor` with specific conditions or events instead of `page.waitForTimeout`
+    - Add JSDoc comments to describe the purpose of helper functions and reusable logic
+    - Ensure tests run reliably in parallel without shared state conflicts
+    - Follow the guidance and best practices described on "https://playwright.dev/docs/writing-tests"
+  
+  6. 
+    - You should create one single test, if there are more than one test your task has failed and return to step 3.
+    - you must run the test and it must pass successfully acording to the instructions in step 4.
+    - If you attempt to end the workflow before completing all steps 1-6, you have FAILED the task.
+    - The test MUST execute EVERY SINGLE STEP from the user's test flow
+    - If ANY step fails or is skipped, you have COMPLETELY FAILED the task
+    - Read the user's assertion requirement word-by-word and ensure EVERY part is tested
+    - NEVER assume an assertion is complete without verifying the EXACT element/data mentioned by the user
+    - "Mostly working" or "almost complete" = TOTAL FAILURE
+    - You MUST return to step 2 and capture missing selectors if ANY are missing
+    - NEVER declare success until the ENTIRE flow passes end-to-end with exit code 0
+
+  7. 
+    - Within the final tests folder you MUST add a readme file that begins with how to run the tests. INCLUDE usage WITH: --reporter=html option ONLY.
+    - DO NOT verify the test can also run with the HTML reporter
+    - Make SURE the readme explains how to run on prod and how to run on N8S
+
+**TEST USER RESTRICTIONS:**
+  - NEVER change the test user from the one provided by the user
+  - If authentication fails, suggest solutions but DO NOT change users
+  - Ask user for permission before changing any test configuration
+  - Follow the "use this user only: {test user vault key}" rule strictly
